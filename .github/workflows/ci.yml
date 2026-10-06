@@ -29,13 +29,14 @@ jobs:
       - run: npm run check:bundle
 
   cloudflare-build:
-    # Cloudflare Workers 向けのビルド（OpenNext）が通るか。wrangler は Node.js 22 以上が必要
+    # Cloudflare Workers 向けのビルド（OpenNext）が通るか。
+    # Workers Builds の既定と同じ Node.js 24（npm 11）で確かめる（wrangler は Node.js 22 以上が必要）
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - run: npm ci
       - run: npm run build:cf

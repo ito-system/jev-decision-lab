@@ -266,7 +266,7 @@ response.answers.impact.score;           // 3.64（0〜4 の位置）
    | Project name（Worker 名） | `jev-decision-lab`（`wrangler.jsonc` の `name` と同じにする。違うとビルドが失敗する） |
    | Build command | `npx opennextjs-cloudflare build` |
    | Deploy command | `npx opennextjs-cloudflare deploy` |
-   | Non-production branch deploy command | `npx opennextjs-cloudflare upload`（`main` 以外のブランチ用） |
+   | Preview command（任意） | 空欄のままでよい。`main` 以外のブランチもプレビューする場合は `npx opennextjs-cloudflare upload` |
 
 4. デプロイが終わったら URL（`https://jev-decision-lab.<サブドメイン>.workers.dev`）を開く。この時点では「Basic 認証が未設定のため停止しています。」と表示される（パスワードを設定するまで、安全のため止まる）
 5. Worker の **Settings** → **Variables and Secrets** で、次の3つを **Secret** として追加し、保存（デプロイ）する
@@ -284,6 +284,7 @@ response.answers.impact.score;           // 3.64（0〜4 の位置）
 - 無料プランの主な制限は、Worker のサイズ（圧縮後 3MiB。このアプリは約 2.2MiB）と、1リクエストあたりの CPU 時間（10ms）です。CPU 時間の超過エラーが出る場合は Workers Paid プラン（月5ドル〜）にしてください。
 - Cloudflare 上の Node.js middleware（`proxy.ts`）は OpenNext で「実験的」なサポートのため、API キーを使う `/api/decide` 自体でも同じ Basic 認証を確かめています。
 - 手元で Cloudflare の実行環境を試すには `npm run preview:cf`（http://localhost:8787）を使います。wrangler は Node.js 22 以上が必要なので、Node.js 20 の PC では `npx -p node@22 npm run preview:cf` のように一時的に Node.js 22 で実行できます。認証などの変数は `.dev.vars`（.gitignore 済み）に書きます。
+- `esbuild` は `package.json` で直接の依存関係にしています。Cloudflare の既定（Node.js 24 / npm 11）の `npm clean-install` では、vite の任意の peer 依存として入る esbuild がインストールされず、OpenNext のビルドが `Cannot find package 'esbuild'` で失敗するためです。消さないでください。
 - 手元から直接公開する `npm run deploy:cf`（要 `npx wrangler login`）もありますが、ビルド時に `.env.local` の値が Worker に組み込まれます。API キーを `.env.local` に入れたまま実行しないでください（GitHub 連携での公開をおすすめする理由です）。
 
 ### Vercel で公開する場合
