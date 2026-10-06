@@ -19,6 +19,20 @@ describe("requestDecision（ブラウザ → /api/decide）", () => {
     );
   });
 
+  it("ページの URL に資格情報（https://user:pass@host）があっても呼べるよう、origin 基準の絶対 URL を使う", async () => {
+    const fetchMock = vi.fn(async () => Response.json({ ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
+    // location.origin には資格情報が含まれない
+    vi.stubGlobal("location", { origin: "https://jev-decision-lab.example.workers.dev" });
+
+    await requestDecision({ scenario: "voc", text: "テスト", mode: undefined });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://jev-decision-lab.example.workers.dev/api/decide",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
   it("サーバーに届かなければ、接続エラーとして返す（Demo Mode でも続行できない）", async () => {
     vi.stubGlobal(
       "fetch",

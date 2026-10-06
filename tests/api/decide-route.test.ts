@@ -24,7 +24,48 @@ beforeEach(() => {
   vi.stubEnv("TYPESAFE_API_KEY", "");
   vi.stubEnv("TYPESAFE_DEFAULT_MODEL", "");
   vi.stubEnv("TYPESAFE_BASE_URL", "");
+  vi.stubEnv("BASIC_AUTH_USER", "");
+  vi.stubEnv("BASIC_AUTH_PASSWORD", "");
+  vi.stubEnv("BASIC_AUTH_REQUIRED", "");
   vi.spyOn(console, "error").mockImplementation(() => {});
+});
+
+// proxy.ts（Cloudflare では実験的なサポート）が動かなくても、APIキーを使う API 自体で認証を確かめる
+describe("POST /api/decide（Basic 認証）", () => {
+  const body = { scenario: "qa", text: "テスト", mode: "mock" };
+  const withAuth = (authorization: string) =>
+    POST(
+      new Request("http://localhost/api/decide", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization },
+        body: JSON.stringify(body),
+      }),
+    );
+
+  it("BASIC_AUTH_PASSWORD を設定していて認証ヘッダーがなければ 401", async () => {
+    vi.stubEnv("BASIC_AUTH_PASSWORD", "pw");
+
+    const response = await post(body);
+
+    expect(response.status).toBe(401);
+    expect(response.headers.get("www-authenticate")).toMatch(/^Basic /);
+  });
+
+  it("正しい資格情報なら判断結果を返す", async () => {
+    vi.stubEnv("BASIC_AUTH_PASSWORD", "pw");
+
+    const response = await withAuth(`Basic ${Buffer.from("anyone:pw").toString("base64")}`);
+
+    expect(response.status).toBe(200);
+  });
+
+  it("BASIC_AUTH_REQUIRED=true でパスワードが未設定なら 503 で止める", async () => {
+    vi.stubEnv("BASIC_AUTH_REQUIRED", "true");
+
+    const response = await post(body);
+
+    expect(response.status).toBe(503);
+  });
 });
 
 describe("POST /api/decide", () => {

@@ -10,10 +10,19 @@ export interface DecisionRequest {
   mode: JevMode | undefined;
 }
 
+/**
+ * ページの URL に資格情報（https://user:pass@host）が含まれていると、相対 URL の fetch は
+ * ブラウザに拒否される。資格情報を含まない origin を基準にする（Basic 認証はブラウザが自動で付ける）。
+ */
+function decideEndpoint(): string {
+  const origin = globalThis.location?.origin;
+  return origin && origin !== "null" ? `${origin}/api/decide` : "/api/decide";
+}
+
 export async function requestDecision(request: DecisionRequest): Promise<DecideResponseBody> {
   let response: Response;
   try {
-    response = await fetch("/api/decide", {
+    response = await fetch(decideEndpoint(), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(request),

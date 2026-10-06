@@ -27,3 +27,15 @@ jobs:
       - run: npm run build
       # ブラウザ向けのファイルに APIキーや Jev SDK の実行コードが含まれていないか
       - run: npm run check:bundle
+
+  cloudflare-build:
+    # Cloudflare Workers 向けのビルド（OpenNext）が通るか。wrangler は Node.js 22 以上が必要
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:cf

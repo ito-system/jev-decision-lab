@@ -1,3 +1,4 @@
+import { basicAuthFailure } from "@/lib/basic-auth";
 import { getServerMode, resolveMode } from "@/lib/jev/config";
 import { describeForLog, toJevServiceError } from "@/lib/jev/errors";
 import { decide } from "@/lib/jev/service";
@@ -19,6 +20,10 @@ function invalidRequest(message: string): Response {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  // proxy.ts だけに頼らず、APIキーを使うこの API でも認証を確かめる
+  const denied = basicAuthFailure(request.headers.get("authorization"));
+  if (denied) return denied;
+
   let body: unknown;
   try {
     body = await request.json();

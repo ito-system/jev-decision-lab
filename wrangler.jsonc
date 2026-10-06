@@ -1,0 +1,29 @@
+// Cloudflare Workers で公開するための設定（OpenNext: https://opennext.js.org/cloudflare）
+// APIキーなどの秘密情報はこのファイルに書かない。Cloudflare のダッシュボードで
+// 「シークレット」として登録する: TYPESAFE_API_KEY / BASIC_AUTH_USER / BASIC_AUTH_PASSWORD
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "jev-decision-lab",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "jev-decision-lab"
+    }
+  ],
+  "vars": {
+    // live: Jev API を呼ぶ / mock: 事前定義のサンプル値を返す。本番中の切り替えは画面右上のバッジでも可能
+    "JEV_DEMO_MODE": "live",
+    // 公開環境では Basic 認証を必須にする（BASIC_AUTH_PASSWORD が未設定なら全リクエストを止める）
+    "BASIC_AUTH_REQUIRED": "true"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

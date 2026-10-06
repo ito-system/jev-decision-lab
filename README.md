@@ -46,7 +46,7 @@ TypeSafe AI の **Jev** を、勉強会のライブデモで体験するため�
 
 ## 2. 必要環境
 
-- Node.js **20.9 以上**（Next.js 16 と TypeSafe 公式 SDK の要件）
+- Node.js **20.9 以上**（Next.js 16 と TypeSafe 公式 SDK の要件）。Cloudflare 向けのコマンド（`preview:cf` / `deploy:cf`）だけは Node.js 22 以上が必要です
 - npm
 - TypeSafe AI の API キー（LIVE モードのみ。MOCK モードは不要）
 
@@ -237,6 +237,7 @@ response.answers.impact.score;           // 3.64（0〜4 の位置）
 | サーバーが起動しない / 画面が開かない | 依存関係・環境変数の問題 | `npm run start:mock`（または `npm run dev:mock`）で MOCK 起動 |
 | 結果が想定と違う | Jev は確率で判断する。日本語は英語より精度が低い場合がある | 確率の分布と確信度を見せて「Jev が迷っている」こと自体を話題にする。台本どおりに見せたい場合は DEMO |
 | 文字が小さい / はみ出す | 投影解像度の違い | ブラウザのズーム（⌘+ / ⌘-）で調整 |
+| 公開 URL で「Basic 認証が未設定のため停止しています。」 | 公開環境で `BASIC_AUTH_PASSWORD` が未設定（安全のため停止している） | Cloudflare の Settings → Variables and Secrets に `BASIC_AUTH_PASSWORD` などを Secret で追加する（[公開手順](#cloudflare-workers-での公開手順github-連携) の5） |
 
 エラーの詳細（HTTP ステータスやリクエスト ID）はサーバーのログ（`npm run dev` / `npm start` を実行しているターミナル）に出ます。画面には API キーや内部エラーの詳細を表示しません。
 
@@ -244,26 +245,50 @@ response.answers.impact.score;           // 3.64（0〜4 の位置）
 
 ## 公開（デプロイ）
 
-このアプリは API キーをサーバー側に置くため、**サーバー処理が動くホスティング** が必要です。
+このアプリは API キーをサーバー側に置いたまま Jev を呼ぶため、**サーバー処理が動くホスティング** が必要です。
 
-- **GitHub Pages は使えません。** 静的ファイルの配信だけなので、`/api/decide`（API キーを隠したまま Jev を呼ぶ部分）が動かず、LIVE モードが成立しません。
-- **おすすめ: Vercel（GitHub 連携）**。Next.js をそのまま動かせて、`main` への push で自動デプロイされます。
+| 公開先 | LIVE（Jev API） | 理由・特徴 |
+| --- | --- | --- |
+| GitHub Pages | ✕ 使えない | 静的ファイルの配信だけなので `/api/decide` が動かない。ブラウザから直接 Jev を呼ぶと API キーを誰でも読めてしまう（公式 SDK も既定でブラウザでの実行を拒否する） |
+| **Cloudflare Workers（おすすめ）** | ○ | GitHub と連携し、`main` に push すると自動でビルド・公開される。Next.js は公式アダプター [OpenNext](https://opennext.js.org/cloudflare) で動かす。無料プランから使える |
+| Vercel | ○ | Next.js をそのまま動かせる。Hobby プランは個人の非商用利用向け |
 
-### Vercel での公開手順
+### Cloudflare Workers での公開手順（GitHub 連携）
 
-1. <https://vercel.com/new> で GitHub の `ito-system/jev-decision-lab` を Import する（Framework は Next.js が自動で選ばれる）
-2. **Environment Variables** に次を設定する
+設定ファイル（`wrangler.jsonc`、`open-next.config.ts`）はリポジトリに入っています。Cloudflare のダッシュボードで次を行います。
+
+1. **Workers & Pages** → **Create application** → **Import a repository** の **Get started** を選ぶ
+2. Git アカウントで GitHub を選び、Cloudflare の GitHub アプリに `ito-system/jev-decision-lab` へのアクセスを許可して、リポジトリを選ぶ
+3. 次のように設定して **Save and Deploy** を押す
+
+   | 項目 | 値 |
+   | --- | --- |
+   | Project name（Worker 名） | `jev-decision-lab`（`wrangler.jsonc` の `name` と同じにする。違うとビルドが失敗する） |
+   | Build command | `npx opennextjs-cloudflare build` |
+   | Deploy command | `npx opennextjs-cloudflare deploy` |
+   | Non-production branch deploy command | `npx opennextjs-cloudflare upload`（`main` 以外のブランチ用） |
+
+4. デプロイが終わったら URL（`https://jev-decision-lab.<サブドメイン>.workers.dev`）を開く。この時点では「Basic 認証が未設定のため停止しています。」と表示される（パスワードを設定するまで、安全のため止まる）
+5. Worker の **Settings** → **Variables and Secrets** で、次の3つを **Secret** として追加し、保存（デプロイ）する
    - `TYPESAFE_API_KEY` = 発行した API キー
-   - `JEV_DEMO_MODE` = `live`
-   - `BASIC_AUTH_USER` / `BASIC_AUTH_PASSWORD` = 任意のユーザー名とパスワード（**公開する場合は必ず設定**）
-3. **Deploy** を押す。発行された URL を開くと、Basic 認証のダイアログが出る
+   - `BASIC_AUTH_USER` = 任意のユーザー名
+   - `BASIC_AUTH_PASSWORD` = 任意のパスワード
+6. もう一度 URL を開き、Basic 認証のダイアログにユーザー名とパスワードを入れて画面が出れば完了
 
-注意:
+以降は `main` に push するたびに、Cloudflare が自動でビルドして公開します。
 
-- Basic 認証を設定しないと、URL を知っている人は誰でもあなたの API キーで Jev を呼べてしまいます。
-- Vercel で環境変数を変えた場合は、再デプロイ（Redeploy）で反映されます。LIVE / DEMO の切り替えだけなら、画面右上のバッジで再デプロイなしにできます。
-- Vercel の Hobby プランは個人の非商用利用向けです。社内利用の扱いは、会社のルールに従って Pro プランや社内のインフラを検討してください。
-- Node.js が動く環境なら、Vercel 以外でも `npm ci && npm run build && npm start` で動きます。
+補足:
+
+- `JEV_DEMO_MODE`（`live`）と `BASIC_AUTH_REQUIRED`（`true`）は `wrangler.jsonc` で設定済みです。ダッシュボードで文字列（Text）の変数として変えても次のデプロイで `wrangler.jsonc` の値に戻るので、変えるときは `wrangler.jsonc` を編集して push します。Secret はデプロイしても消えません。
+- LIVE / DEMO の切り替えは、画面右上のバッジで再デプロイなしにできます。
+- 無料プランの主な制限は、Worker のサイズ（圧縮後 3MiB。このアプリは約 2.2MiB）と、1リクエストあたりの CPU 時間（10ms）です。CPU 時間の超過エラーが出る場合は Workers Paid プラン（月5ドル〜）にしてください。
+- Cloudflare 上の Node.js middleware（`proxy.ts`）は OpenNext で「実験的」なサポートのため、API キーを使う `/api/decide` 自体でも同じ Basic 認証を確かめています。
+- 手元で Cloudflare の実行環境を試すには `npm run preview:cf`（http://localhost:8787）を使います。wrangler は Node.js 22 以上が必要なので、Node.js 20 の PC では `npx -p node@22 npm run preview:cf` のように一時的に Node.js 22 で実行できます。認証などの変数は `.dev.vars`（.gitignore 済み）に書きます。
+- 手元から直接公開する `npm run deploy:cf`（要 `npx wrangler login`）もありますが、ビルド時に `.env.local` の値が Worker に組み込まれます。API キーを `.env.local` に入れたまま実行しないでください（GitHub 連携での公開をおすすめする理由です）。
+
+### Vercel で公開する場合
+
+<https://vercel.com/new> で `ito-system/jev-decision-lab` を Import し、Environment Variables に `TYPESAFE_API_KEY`、`JEV_DEMO_MODE=live`、`BASIC_AUTH_REQUIRED=true`、`BASIC_AUTH_USER`、`BASIC_AUTH_PASSWORD` を設定して Deploy します。環境変数の変更は再デプロイで反映されます。Hobby プランは個人の非商用利用向けなので、社内利用の扱いは会社のルールに従ってください。
 
 勉強会でいちばん確実なのは、発表者の PC で `npm run build && npm start` を実行してローカルで投影する方法です（公開 URL は、事前の共有や後日の体験用に使う想定です）。
 
@@ -297,7 +322,9 @@ Jev API            https://api.typesafe.ai/v1/systemone
 | `lib/jev/mock.ts` | Demo Mode のサンプル値 |
 | `lib/jev/errors.ts` | SDK のエラーを、画面に出してよいメッセージに変換 |
 | `lib/jev/config.ts` | `JEV_DEMO_MODE` の解釈 |
-| `proxy.ts` | 任意の Basic 認証（Next.js 16 で middleware から改名された proxy） |
+| `lib/basic-auth.ts` | 公開時の Basic 認証の判定（`proxy.ts` と `/api/decide` の両方で使う） |
+| `proxy.ts` | ページ全体に Basic 認証をかける（Next.js 16 で middleware から改名された proxy） |
+| `wrangler.jsonc` / `open-next.config.ts` | Cloudflare Workers で公開するための設定 |
 
 ## テスト
 
@@ -310,7 +337,7 @@ npm run build
 npm run check:bundle      # build 後: ブラウザ向けファイルに APIキー・SDK の実行コードがないか確認
 ```
 
-通常のテストは、Jev API の代わりに応答する fetch を公式 SDK に差し込み、SDK 本体はそのまま動かしています。そのため「1回の `systemOne` 呼び出しに全質問が入るか」「モデル指定が `jev-latest` か」「Score の criteria が配列か」など、実際に送られるリクエストの形まで確認しています。GitHub Actions（`.github/workflows/ci.yml`）でも、push のたびに同じチェックを APIキーなしで実行します。
+通常のテストは、Jev API の代わりに応答する fetch を公式 SDK に差し込み、SDK 本体はそのまま動かしています。そのため「1回の `systemOne` 呼び出しに全質問が入るか」「モデル指定が `jev-latest` か」「Score の criteria が配列か」など、実際に送られるリクエストの形まで確認しています。GitHub Actions（`.github/workflows/ci.yml`）でも、push のたびに同じチェックを APIキーなしで実行し、Cloudflare 向けのビルド（Node.js 22）が通るかも確認します。
 
 ## 環境変数
 
@@ -319,8 +346,9 @@ npm run check:bundle      # build 後: ブラウザ向けファイルに APIキ�
 | `TYPESAFE_API_KEY` | LIVE のとき | TypeSafe AI の API キー。サーバー側だけで使う |
 | `JEV_DEMO_MODE` | | `live`（既定）または `mock`。それ以外の値は安全のため `mock` として扱う |
 | `TYPESAFE_DEFAULT_MODEL` | | モデルのバージョンを固定する（例: `jev-1.13.0`）。未設定なら SDK 既定の `jev-latest` |
-| `BASIC_AUTH_PASSWORD` | 公開時は推奨 | 設定すると Basic 認証が有効になる |
+| `BASIC_AUTH_PASSWORD` | 公開時は必須 | 設定すると Basic 認証が有効になる |
 | `BASIC_AUTH_USER` | | 設定した場合はユーザー名も照合する |
+| `BASIC_AUTH_REQUIRED` | | `true` にすると、`BASIC_AUTH_PASSWORD` が未設定のとき全リクエストを止める（Cloudflare では `wrangler.jsonc` で `true` に設定済み） |
 
 ## 参考リンク
 

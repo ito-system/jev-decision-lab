@@ -8,6 +8,9 @@
     "build": "next build",
     "start": "next start",
     "start:mock": "JEV_DEMO_MODE=mock next start",
+    "build:cf": "opennextjs-cloudflare build",
+    "preview:cf": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy:cf": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
@@ -16,6 +19,7 @@
     "check:bundle": "node scripts/check-client-bundle.mjs"
   },
   "dependencies": {
+    "@opennextjs/cloudflare": "^1.20.8",
     "@typesafe-ai/sdk": "^0.6.0",
     "next": "16.3.8",
     "react": "19.2.8",
@@ -31,7 +35,8 @@
     "eslint-config-next": "16.3.8",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "wrangler": "^4.147.0"
   },
   "engines": {
     "node": ">=20.9.0"

@@ -17,6 +17,7 @@ const passedThrough = (response: Response) => response.headers.get("x-middleware
 beforeEach(() => {
   vi.stubEnv("BASIC_AUTH_USER", "");
   vi.stubEnv("BASIC_AUTH_PASSWORD", "");
+  vi.stubEnv("BASIC_AUTH_REQUIRED", "");
 });
 
 describe("proxy（Basic 認証）", () => {
@@ -48,6 +49,29 @@ describe("proxy（Basic 認証）", () => {
 
     it("正しいユーザー名とパスワード（':' を含む）なら通す", () => {
       expect(passedThrough(proxy(request("/", basic("jev", "s3cret:pass"))))).toBe(true);
+    });
+  });
+
+  describe("BASIC_AUTH_REQUIRED=true（Cloudflare などの公開環境）", () => {
+    beforeEach(() => {
+      vi.stubEnv("BASIC_AUTH_REQUIRED", "true");
+    });
+
+    it.each(["/", "/api/decide"])(
+      "パスワードが未設定なら %s を 503 で止める（APIキーを第三者に使わせない）",
+      (path) => {
+        const response = proxy(request(path, basic("anyone", "")));
+
+        expect(response.status).toBe(503);
+        expect(passedThrough(response)).toBe(false);
+      },
+    );
+
+    it("パスワードを設定すれば、通常どおり Basic 認証で判定する", () => {
+      vi.stubEnv("BASIC_AUTH_PASSWORD", "pw");
+
+      expect(proxy(request("/")).status).toBe(401);
+      expect(passedThrough(proxy(request("/", basic("anyone", "pw"))))).toBe(true);
     });
   });
 
