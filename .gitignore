@@ -30,8 +30,12 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files
+# .env.local には TYPESAFE_API_KEY を書くため、絶対にコミットしない
+.env.local
 .env*
+# 例外: キーを含まない設定例だけはコミットする
+!.env.example
 
 # vercel
 .vercel

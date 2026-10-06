@@ -1,26 +1,241 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Jev Decision Lab のデザイントークン
+ * - インク紺の地に、質問タイプごとの色（Choice=アイリス / Noul=ラグーン / Score=サフラン）
+ * - プロジェクターで沈まないよう、背景は純黒ではなく紺、文字と色は明度高め
+ */
+@theme {
+  --color-ink-950: #0b1120;
+  --color-ink-900: #10192c;
+  --color-ink-850: #152038;
+  --color-ink-800: #1b2744;
+  --color-rule: #2b3858;
+  --color-rule-strong: #43547e;
+  --color-paper: #eef2f9;
+  --color-fog: #a8b3cf;
+  --color-mist: #7683a5;
+  --color-iris: #aab7ff;
+  --color-lagoon: #55d9c6;
+  --color-saffron: #ffc460;
+  --color-coral: #ff7d6e;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans:
+    var(--font-murecho), "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP",
+    "Yu Gothic", system-ui, sans-serif;
+  --font-mono: var(--font-martian), ui-monospace, "SFMono-Regular", Menlo, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  color-scheme: dark;
+  /* 投影解像度に合わせて全体の文字サイズを拡大する（1280px で約17px、1920px 以上で20px） */
+  font-size: clamp(16px, 0.55vw + 10px, 20px);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background:
+    radial-gradient(80rem 40rem at 70% -10%, rgb(170 183 255 / 0.07), transparent 60%),
+    var(--color-ink-950);
+  color: var(--color-paper);
+  font-family: var(--font-sans);
+  font-feature-settings: "palt";
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+  word-break: auto-phrase;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-iris);
+  outline-offset: 3px;
+}
+
+/* 見出しの上の小さなラベル（State / Answers） */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-mist);
+}
+
+.readout {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+/* ---- 確率バー: 25% ごとに目盛り。結果が出たら 0 から値まで伸びる ---- */
+.bar-track {
+  position: relative;
+  height: var(--bar-height, 0.7rem);
+  border-radius: 999px;
+  background-color: rgb(43 56 88 / 0.65);
+  background-image: linear-gradient(
+    to right,
+    transparent calc(100% - 1px),
+    rgb(238 242 249 / 0.13) calc(100% - 1px)
+  );
+  background-size: 25% 100%;
+  overflow: hidden;
+}
+
+.bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--value, 0%);
+  border-radius: inherit;
+  background-color: var(--tone);
+  animation: grow-width 820ms cubic-bezier(0.22, 0.8, 0.24, 1) both;
+}
+
+.bar-fill.is-muted {
+  background-color: color-mix(in oklab, var(--tone) 45%, transparent);
+}
+
+@keyframes grow-width {
+  from {
+    width: 0;
+  }
+}
+
+/* ---- Score: 段階ごとの分布（柱）と、期待値を指す目盛り ---- */
+.score-gauge {
+  --inset: calc(100% / (2 * var(--levels)));
+}
+
+.score-histogram {
+  display: grid;
+  grid-template-columns: repeat(var(--levels), minmax(0, 1fr));
+  align-items: end;
+  height: 3.6rem;
+}
+
+.score-column {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  height: 100%;
+}
+
+.score-bar {
+  width: 42%;
+  height: max(var(--value, 0%), 2px);
+  border-radius: 0.35rem 0.35rem 0 0;
+  background-color: color-mix(in oklab, var(--tone) 50%, transparent);
+  animation: grow-height 820ms cubic-bezier(0.22, 0.8, 0.24, 1) both;
+}
+
+.score-bar.is-peak {
+  background-color: var(--tone);
+}
+
+@keyframes grow-height {
+  from {
+    height: 0;
+  }
+}
+
+.score-ruler {
+  position: relative;
+  margin-inline: var(--inset);
+  height: 0.55rem;
+  border-radius: 999px;
+  background: rgb(43 56 88 / 0.85);
+}
+
+.score-ruler-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--value, 0%);
+  border-radius: inherit;
+  background-color: var(--tone);
+  animation: grow-width 820ms cubic-bezier(0.22, 0.8, 0.24, 1) both;
+}
+
+.score-pointer {
+  position: absolute;
+  top: 50%;
+  left: var(--value, 0%);
+  width: 1.15rem;
+  height: 1.15rem;
+  border: 0.22rem solid var(--color-ink-900);
+  border-radius: 999px;
+  background: var(--tone);
+  box-shadow: 0 0 0 2px var(--tone);
+  transform: translate(-50%, -50%);
+  animation: slide-left 820ms cubic-bezier(0.22, 0.8, 0.24, 1) both;
+}
+
+@keyframes slide-left {
+  from {
+    left: 0;
+  }
+}
+
+.score-ticks {
+  position: relative;
+  margin-inline: var(--inset);
+  height: 1.4rem;
+}
+
+.score-ticks > span {
+  position: absolute;
+  top: 0.35rem;
+  transform: translateX(-50%);
+}
+
+/* ---- Noul: 50% の中央線つきメーター ---- */
+.noul-meter {
+  position: relative;
+}
+
+.noul-meter::after {
+  content: "";
+  position: absolute;
+  top: -0.45rem;
+  bottom: -0.45rem;
+  left: 50%;
+  width: 2px;
+  background: rgb(238 242 249 / 0.55);
+}
+
+/* ---- Demo Mode: 斜線のハッチング = 事前定義のサンプル値（Jev の応答ではない） ---- */
+.hatch,
+[data-demo="true"] .bar-fill,
+[data-demo="true"] .score-bar,
+[data-demo="true"] .score-ruler-fill {
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgb(11 17 32 / 0.5) 0 0.25rem,
+    transparent 0.25rem 0.55rem
+  );
+}
+
+/* ---- 判断中の表示 ---- */
+.pulse-dot {
+  animation: pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar-fill,
+  .score-bar,
+  .score-ruler-fill,
+  .score-pointer,
+  .pulse-dot {
+    animation: none;
+  }
 }

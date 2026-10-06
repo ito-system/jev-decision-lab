@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    # APIキーなしで動くことを確認する（Jev API は呼ばない）
+    env:
+      JEV_DEMO_MODE: mock
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      # ブラウザ向けのファイルに APIキーや Jev SDK の実行コードが含まれていないか
+      - run: npm run check:bundle
